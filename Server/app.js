@@ -1,5 +1,5 @@
 const path = require("path");
-
+const fs = require("fs");
 const express = require("express");
 const bodyParser = require("body-parser");
 const mongoose = require("mongoose");
@@ -13,12 +13,20 @@ const { clearImage } = require("./util/file");
 
 const app = express();
 
+// Kiểm tra và tạo thư mục "images" nếu chưa có
+const uploadDir = path.join(__dirname, "images");
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir, { recursive: true });
+}
+
+// Cấu hình lưu file với multer (đổi ":" thành "-")
 const fileStorage = multer.diskStorage({
   destination: (req, file, cb) => {
     cb(null, "images");
   },
   filename: (req, file, cb) => {
-    cb(null, new Date().toISOString() + "-" + file.originalname);
+    const uniqueSuffix = new Date().toISOString().replace(/:/g, "-"); // Đổi ":" thành "-"
+    cb(null, uniqueSuffix + "-" + file.originalname);
   },
 });
 
@@ -34,13 +42,14 @@ const fileFilter = (req, file, cb) => {
   }
 };
 
-// app.use(bodyParser.urlencoded()); // x-www-form-urlencoded <form>
+// Middleware
 app.use(bodyParser.json()); // application/json
 app.use(
   multer({ storage: fileStorage, fileFilter: fileFilter }).single("image")
 );
 app.use("/images", express.static(path.join(__dirname, "images")));
 
+// Cấu hình CORS
 app.use((req, res, next) => {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader(
@@ -56,6 +65,7 @@ app.use((req, res, next) => {
 
 app.use(auth);
 
+// Endpoint upload ảnh
 app.put("/post-image", (req, res, next) => {
   if (!req.isAuth) {
     throw new Error("Not authenticated!");
@@ -71,14 +81,14 @@ app.put("/post-image", (req, res, next) => {
     .json({ message: "File stored.", filePath: req.file.path });
 });
 
+// Cấu hình GraphQL API
 app.use(
   "/graphql",
   graphqlHTTP({
-    // <- Sửa chữ H hoa
     schema: graphqlSchema,
     rootValue: graphqlResolver,
     graphiql: true,
-    formatError(err) {
+    customFormatErrorFn(err) {
       if (!err.originalError) {
         return err;
       }
@@ -90,6 +100,7 @@ app.use(
   })
 );
 
+// Middleware xử lý lỗi chung
 app.use((error, req, res, next) => {
   console.log(error);
   const status = error.statusCode || 500;
@@ -98,12 +109,16 @@ app.use((error, req, res, next) => {
   res.status(status).json({ message: message, data: data });
 });
 
+// Kết nối MongoDB và khởi động server
 mongoose
   .connect(
-    "mongodb+srv://kakasatoshi:Mnbv%400987@product.6wlp4.mongodb.net/Product2?retryWrites=true&w=majority&appName=Product2",
-    { useNewUrlParser: true, useUnifiedTopology: true }
+    "mongodb+srv://quanganh1006:08032020@clustermongodb.g0asari.mongodb.net/res-api",
+    {
+      useNewUrlParser: true,
+      useUnifiedTopology: true,
+    }
   )
-  .then((result) => {
-    app.listen(8080);
+  .then(() => {
+    app.listen(8080, () => console.log("✅ Server is running on port 8080"));
   })
   .catch((err) => console.log(err));
