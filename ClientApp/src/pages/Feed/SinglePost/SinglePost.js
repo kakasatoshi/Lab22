@@ -70,7 +70,7 @@ class SinglePost extends Component {
         </h2>
         <div className="single-post__image">
           <Image contain imageUrl={this.state.image} />
-          <img src={this.state.image} alt={this.state.title} />
+          
         </div>
         <p>{this.state.content}</p>
       </section>
